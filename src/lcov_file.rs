@@ -106,7 +106,6 @@ impl Lcov {
     }
 
     pub fn diffstd(&self, other: &Self) {
-        use colored::*;
         use prettytable::{format::consts::FORMAT_CLEAN, format::Alignment, Cell, Row, Table};
 
         let summary = self.summary();
