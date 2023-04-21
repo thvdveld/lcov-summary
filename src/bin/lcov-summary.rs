@@ -12,8 +12,7 @@ struct Args {
     #[arg(short, long)]
     summary: bool,
 
-    #[arg(short, long)]
-    diff: Option<std::path::PathBuf>,
+    diff_lcov_file: Option<std::path::PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -21,7 +20,7 @@ fn main() -> Result<()> {
 
     let lcov = Lcov::parse(args.lcov_file)?;
 
-    let lcov2 = if let Some(file2) = args.diff {
+    let lcov2 = if let Some(file2) = args.diff_lcov_file {
         Some(Lcov::parse(file2)?)
     } else {
         None
@@ -29,7 +28,7 @@ fn main() -> Result<()> {
 
     if args.summary {
         if let Some(lcov2) = lcov2 {
-            lcov.diffstd(&lcov2);
+            lcov.diffsummarystd(&lcov2);
         } else {
             lcov.summarystd();
         }

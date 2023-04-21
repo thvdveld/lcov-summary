@@ -27,6 +27,7 @@ impl LcovSummary {
 }
 
 impl Lcov {
+    /// Parse an LCOV file.
     pub fn parse(name: std::path::PathBuf) -> Result<Self> {
         let source = std::fs::read_to_string(&name)?;
         let mut files = vec![];
@@ -105,7 +106,18 @@ impl Lcov {
         Ok(Self { name, files })
     }
 
-    pub fn diffstd(&self, other: &Self) {
+    /// Return a reference to the parsed files.
+    pub fn files(&self) -> &[LcovFile] {
+        &self.files
+    }
+
+    /// Return a mutable reference to the parsed files.
+    pub fn files_mut(&mut self) -> &mut [LcovFile] {
+        &mut self.files
+    }
+
+    /// Print a summary of the diff of two files to stdout.
+    pub fn diffsummarystd(&self, other: &Self) {
         use prettytable::{format::consts::FORMAT_CLEAN, format::Alignment, Cell, Row, Table};
 
         let summary = self.summary();
@@ -116,26 +128,11 @@ impl Lcov {
 
         let mut table = Table::new();
         table.set_format(*FORMAT_CLEAN);
-        table.set_titles(Row::new(vec![
-            Cell::new(""),
-            Cell::new(""),
-            {
-                let mut line = Cell::new_align("Lines", Alignment::CENTER);
-                line.set_hspan(3);
-                line
-            },
-            Cell::new("diff"),
-            Cell::new(""),
-            {
-                let mut fs = Cell::new_align("Functions", Alignment::CENTER);
-                fs.set_hspan(3);
-                fs
-            },
-            Cell::new("diff"),
-        ]));
+        table.set_titles(Self::title_row());
+        table.add_row(Self::sub_title_row());
 
         table.add_row(Row::new(vec![
-            Cell::new(&self.name.to_string_lossy()),
+            Cell::new_align(&self.name.to_string_lossy(), Alignment::RIGHT),
             Cell::new("│"),
             Cell::new_align(&summary.total_lines_hit.to_string(), Alignment::RIGHT),
             Cell::new_align(&summary.total_lines.to_string(), Alignment::RIGHT),
@@ -143,7 +140,6 @@ impl Lcov {
                 &Self::color_percentage(summary.lines_percentage(), 70., 80.),
                 Alignment::RIGHT,
             ),
-            Cell::new(""),
             Cell::new("│"),
             Cell::new_align(&summary.total_functions_hit.to_string(), Alignment::RIGHT),
             Cell::new_align(&summary.total_functions.to_string(), Alignment::RIGHT),
@@ -151,11 +147,10 @@ impl Lcov {
                 &Self::color_percentage(summary.functions_percentage(), 70., 80.),
                 Alignment::RIGHT,
             ),
-            Cell::new(""),
         ]));
 
         table.add_row(Row::new(vec![
-            Cell::new(&other.name.to_string_lossy()),
+            Cell::new_align(&other.name.to_string_lossy(), Alignment::RIGHT),
             Cell::new("│"),
             Cell::new_align(&summary_other.total_lines_hit.to_string(), Alignment::RIGHT),
             Cell::new_align(&summary_other.total_lines.to_string(), Alignment::RIGHT),
@@ -163,7 +158,6 @@ impl Lcov {
                 &Self::color_percentage(summary_other.lines_percentage(), 70., 80.),
                 Alignment::RIGHT,
             ),
-            Cell::new(&Self::color_percentage_diff(lines_diff)),
             Cell::new("│"),
             Cell::new_align(
                 &summary_other.total_functions_hit.to_string(),
@@ -174,12 +168,70 @@ impl Lcov {
                 &Self::color_percentage(summary_other.functions_percentage(), 70., 80.),
                 Alignment::RIGHT,
             ),
-            Cell::new(&Self::color_percentage_diff(functions_diff)),
+        ]));
+
+        table.add_row(Row::new(vec![
+            Cell::new_align("diff", Alignment::RIGHT),
+            Cell::new("│"),
+            Cell::new_align(
+                {
+                    let diff =
+                        summary_other.total_lines_hit as isize - summary.total_lines_hit as isize;
+                    &match diff {
+                        diff if diff > 0 => format!("+ {diff}"),
+                        diff if diff < 0 => format!("- {}", diff.abs()),
+                        _ => String::new(),
+                    }
+                },
+                Alignment::RIGHT,
+            ),
+            Cell::new_align(
+                {
+                    let diff = summary_other.total_lines as isize - summary.total_lines as isize;
+                    &match diff {
+                        diff if diff > 0 => format!("+ {diff}"),
+                        diff if diff < 0 => format!("- {}", diff.abs()),
+                        _ => String::new(),
+                    }
+                },
+                Alignment::RIGHT,
+            ),
+            Cell::new_align(&Self::color_percentage_diff(lines_diff), Alignment::RIGHT),
+            Cell::new("│"),
+            Cell::new_align(
+                {
+                    let diff = summary_other.total_functions_hit as isize
+                        - summary.total_functions_hit as isize;
+                    &match diff {
+                        diff if diff > 0 => format!("+ {diff}"),
+                        diff if diff < 0 => format!("- {}", diff.abs()),
+                        _ => String::new(),
+                    }
+                },
+                Alignment::RIGHT,
+            ),
+            Cell::new_align(
+                {
+                    let diff =
+                        summary_other.total_functions as isize - summary.total_functions as isize;
+                    &match diff {
+                        diff if diff > 0 => format!("+ {diff}"),
+                        diff if diff < 0 => format!("- {}", diff.abs()),
+                        _ => String::new(),
+                    }
+                },
+                Alignment::RIGHT,
+            ),
+            Cell::new_align(
+                &Self::color_percentage_diff(functions_diff),
+                Alignment::RIGHT,
+            ),
         ]));
 
         table.printstd();
     }
 
+    /// Return the summary of a an LCOV file.
     pub fn summary(&self) -> LcovSummary {
         let mut total_lines = 0;
         let mut total_lines_hit = 0;
@@ -200,6 +252,7 @@ impl Lcov {
         }
     }
 
+    /// Print the summary of an LCOV file to stdout.
     pub fn summarystd(&self) {
         use prettytable::{format::consts::FORMAT_CLEAN, format::Alignment, Cell, Row, Table};
 
@@ -209,33 +262,8 @@ impl Lcov {
 
         let mut table = Table::new();
         table.set_format(*FORMAT_CLEAN);
-        table.set_titles(Row::new(vec![
-            Cell::new(""),
-            Cell::new(""),
-            {
-                let mut line = Cell::new_align("Lines", Alignment::CENTER);
-                line.set_hspan(3);
-                line
-            },
-            Cell::new(""),
-            {
-                let mut fs = Cell::new_align("Functions", Alignment::CENTER);
-                fs.set_hspan(3);
-                fs
-            },
-        ]));
-
-        table.add_row(Row::new(vec![
-            Cell::new(""),
-            Cell::new("│"),
-            Cell::new("Hit"),
-            Cell::new("Total"),
-            Cell::new("H/T"),
-            Cell::new("│"),
-            Cell::new("Hit"),
-            Cell::new("Total"),
-            Cell::new("H/T"),
-        ]));
+        table.set_titles(Self::title_row());
+        table.add_row(Self::sub_title_row());
 
         table.add_row(Row::new(vec![
             Cell::new_align(&self.name.to_string_lossy(), Alignment::RIGHT),
@@ -258,39 +286,15 @@ impl Lcov {
         table.printstd();
     }
 
+    /// Print the LCOV file to stdout.
     pub fn printstd(&self) {
         use prettytable::{format::consts::FORMAT_CLEAN, format::Alignment, Cell, Row, Table};
 
         let mut table = Table::new();
         table.set_format(*FORMAT_CLEAN);
 
-        table.set_titles(Row::new(vec![
-            Cell::new(""),
-            Cell::new(""),
-            {
-                let mut line = Cell::new_align("Lines", Alignment::CENTER);
-                line.set_hspan(3);
-                line
-            },
-            Cell::new(""),
-            {
-                let mut fs = Cell::new_align("Functions", Alignment::CENTER);
-                fs.set_hspan(3);
-                fs
-            },
-        ]));
-
-        table.add_row(Row::new(vec![
-            Cell::new(""),
-            Cell::new("│"),
-            Cell::new("Hit"),
-            Cell::new("Total"),
-            Cell::new("H/T"),
-            Cell::new("│"),
-            Cell::new("Hit"),
-            Cell::new("Total"),
-            Cell::new("H/T"),
-        ]));
+        table.set_titles(Self::title_row());
+        table.add_row(Self::sub_title_row());
 
         let summary = self.summary();
         let total_lines_p = summary.lines_percentage();
@@ -356,6 +360,7 @@ impl Lcov {
         } else if value > 0. {
             format!("+ {value:.2}%").green().to_string()
         } else {
+            let value = value.abs();
             format!("- {value:.2}%").red().to_string()
         }
     }
@@ -375,10 +380,45 @@ impl Lcov {
             }
         )
     }
+
+    fn title_row() -> prettytable::Row {
+        use prettytable::{format::Alignment, Cell, Row};
+
+        Row::new(vec![
+            Cell::new(""),
+            Cell::new(""),
+            {
+                let mut line = Cell::new_align("Lines", Alignment::CENTER);
+                line.set_hspan(3);
+                line
+            },
+            Cell::new(""),
+            {
+                let mut fs = Cell::new_align("Functions", Alignment::CENTER);
+                fs.set_hspan(3);
+                fs
+            },
+        ])
+    }
+    fn sub_title_row() -> prettytable::Row {
+        use prettytable::{Cell, Row};
+
+        Row::new(vec![
+            Cell::new(""),
+            Cell::new("│"),
+            Cell::new("Hit"),
+            Cell::new("Total"),
+            Cell::new("H/T"),
+            Cell::new("│"),
+            Cell::new("Hit"),
+            Cell::new("Total"),
+            Cell::new("H/T"),
+        ])
+    }
 }
 
 #[derive(Debug)]
-pub(crate) struct LcovFile {
+pub struct LcovFile {
     name: String,
     function_hits: HashMap<String, usize>,
     functions_found: usize,
@@ -390,7 +430,7 @@ pub(crate) struct LcovFile {
 }
 
 impl LcovFile {
-    fn new(source: &impl AsRef<str>) -> Self {
+    pub fn new(source: &impl AsRef<str>) -> Self {
         let source = source.as_ref();
         Self {
             name: source.to_string(),
