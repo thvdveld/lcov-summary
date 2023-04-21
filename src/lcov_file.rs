@@ -116,6 +116,10 @@ impl Lcov {
         &mut self.files
     }
 
+    pub fn diffstd(&self, other: &Self) {
+        todo!();
+    }
+
     /// Print a summary of the diff of two files to stdout.
     pub fn diffsummarystd(&self, other: &Self) {
         use prettytable::{format::consts::FORMAT_CLEAN, format::Alignment, Cell, Row, Table};

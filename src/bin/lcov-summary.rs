@@ -10,7 +10,7 @@ struct Args {
     lcov_file: std::path::PathBuf,
     /// Only show the summary.
     #[arg(short, long)]
-    summary: bool,
+    full: bool,
 
     diff_lcov_file: Option<std::path::PathBuf>,
 }
@@ -26,14 +26,16 @@ fn main() -> Result<()> {
         None
     };
 
-    if args.summary {
+    if args.full {
         if let Some(lcov2) = lcov2 {
-            lcov.diffsummarystd(&lcov2);
+            lcov.diffstd(&lcov2);
         } else {
-            lcov.summarystd();
+            lcov.printstd();
         }
+    } else if let Some(lcov2) = lcov2 {
+        lcov.diffsummarystd(&lcov2);
     } else {
-        lcov.printstd();
+        lcov.summarystd();
     }
 
     Ok(())
